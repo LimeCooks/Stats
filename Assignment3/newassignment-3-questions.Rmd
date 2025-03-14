@@ -1,0 +1,409 @@
+---
+title: "STAT2430: Assignment 3."
+author: "Liam Cook / B00711028"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    highlight: textmate
+    theme: dark
+    toc: true
+    toc_float: true
+    fig_width: 9.67
+    fig_height: 6
+    fig_caption: true
+---
+<a id="top"></a>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse, quietly = TRUE)
+library(broom)
+library(kableExtra)
+library(ggplot2)
+library(dplyr)
+# library(lubridate) # now part of tidyverse package
+```
+
+In this assignment you will use a combination of 
+
+* data manipulation (using dplyr),
+* visualizations (with ggplot),
+* linear regression (using lm), and
+* smooths (GAM or LOESS),
+
+to explore data and answer a question about the data. This marks a shift in emphasis in the course. So far most of our work has been on methods, vocabulary, and computer code to perform short exercises. Here we will start trying to use the tools we've learned in a synthetic and creative way to create new knowledge using data.
+ 
+In this assignment I'll select data and questions for you and guide you through some tasks to get answers to our questions. In assignments 4 and 5, I will again select data for you and ask you to use particular methods, but I'll ask you to make connections between questions, data, and analysis. For the term project you will be responsible for all aspects of this sort of analysis: selecting data, formulating questions, selecting analyses and visualizations, and presenting the results.
+
+Download the 2 datasets needed for this assignment ftom BS.
+
+
+
+# Problem 1  [5 pts]
+<hr style='border: 5px solid red;'>
+
+
+
+## 1.1 Data+context
+<hr style='border: 3px solid blue;'>
+
+Phytoplankton are microscopic organisms that photosynthesize, providing food for the aquatic food web. [Liefer et al.](https://dx.doi.org/10.3389/fmicb.2019.00763) starved each species for nitrogen and collected data on the growth rate and composition of four species of phytoplankton. 
+
+The data read below contain many data on four species. 
+
+We will focus on three variables: species, growth rate, and the ratio of the number of carbon and nitrogen atoms in a cell. 
+
+The growth rate is the parameter $k$ from the exponential growth equation for the number of cells in the population: $p(t) = p(0)e^{kt}$ and is measured in units of 1/days. 
+
+The elemental ratio C:N  (carbon to nitrogen ratio) is quantitative, but dimensionless.
+
+Here we read the dataset, use mutate to add a column named C_N whose value is computed from the C and N columns. As a Carbon atom has a mass of 12 atom grams, and a Nitrogen atom has a mass of 14 atom grams, the formula we use count the ratio of number of C and N atoms in each sample.
+
+[TEMPLATE CODE-1: run as is]
+
+```{r}
+phytoplankton <- read.csv("phytoplankton.csv") |>
+  mutate(C_N = (C/12)/(N/14))
+names(phytoplankton)
+```
+The species in this dataset are:
+
+```{r}
+unique(phytoplankton$species)
+```
+
+
+<hr style='border: 3px solid blue;'>
+## 1.2 Question 1a 
+
+Now, write a R code to make a faceted plot (4 panels arranged in a 2x2 grid) of `growth_rate` as a function of `C_N` with data from each species on its own facet. 
+This relationship is approximately linear, so add a straight line regression to each panel using `geom_smooth`.
+
+
+[YOUR SOLUTION CODE HERE-1] [1 pt]
+```{r}
+ggplot(phytoplankton, aes(x = C_N, y = growth_rate)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ species, nrow = 2, ncol = 2) +
+  labs(title = "Growth Rate vs. C_N Ratio by Species",
+       x = "C_N Ratio",
+       y = "Growth Rate (1/days)")
+
+```
+
+
+Look at the plot and answer the following question:
+
+This plot shows that (replace each  [x/y] by the correct option)
+
+```{}
+For any species, we observe that the growth rate is a decreasing function of the C:N ratio. 
+
+The maximum possible growth rate would therefore occur at a hypothetical C:N ratio of 0
+
+We recognize that this value is the intercept of the regression model.
+
+```
+
+
+
+## 1.3 Question 1b
+<hr style='border: 3px solid blue;'>
+
+1. Use `filter` to create a dataframe dm1 for the species: Thalassiosira weissflogii. 
+2. Use 'lm' to compute a linear regression model 'lm1' of growth_rate versus C_N for dataset dm1
+3. Apply 'tidy' to model lm1, and use 'kable' with 2 digits to display a table with the intercept and slope for this line. This table should include the confidence intervals for the intercept and the slope.
+
+
+[YOUR SOLUTION CODE HERE-2] [2 pts]
+
+```{r}
+# 3 lines of R CODE
+dm1 <- phytoplankton |> filter(species == "Thalassiosira weissflogii")
+
+lm1 <- lm(growth_rate ~ C_N, data = dm1)
+lm1 %>%
+  tidy(conf.int = TRUE) %>%
+  kable(digits = 2)
+
+```
+
+
+## 1.4 Question 1c
+<hr style='border: 3px solid blue;'>
+
+You will write a R code that fits one linear regression model of growth rate versus C:N ratio, separately for each species, and display a table of the intercepts and slopes of these models.
+
+You will adapt a code example from Healy. He shows you how to fit a regression line to subsets of the data using `group_by` and `nest` in section 6.6.
+
+
+### HINT
+
+The example below creates four models, one for each species, using `lm` and the display the model coefficients using `tidy`. The code applies a statistical analysis to study the relationship between protein content and nitrogen for each species in the `phytoplankton` dataset. 
+ 
+[DO NOT USE, ECHO OR KNIT THIS TEMPLATE CODE-2]
+```{r,echo=FALSE, eval=FALSE}
+# do not modify this template code which is just provided as an example
+# you can/should run this code to see what is does but you will need to
+# copy this code to the next cell of R code and modify it in a suitable manner
+# to answer the question asked
+phytoplankton |> 
+  group_by(species) |>
+  nest() %>%   # Can't use the new pipe here with data = . in next line
+  mutate(model = map(data, ~ lm(protein ~ N, data = .)),
+         tidied = map(model, tidy, conf.int=TRUE)) |>
+  unnest(tidied) |>
+  select(-data, -model) |>
+  kable(digits = 3 )
+```
+
+Here’s a step-by-step explanation of the code:
+
+1. Group data by species
+
+```r
+phytoplankton |> 
+  group_by(species) |>
+```
+- This groups the data by species so that the following operations are performed separately for each species.
+
+2. Nest data for each species
+```r
+  nest() %>% 
+```
+- `nest()` creates a new column called `data`, which contains a list of data frames, each corresponding to a single species.
+
+3. Fit a linear model for each species
+```r
+  mutate(model = map(data, ~ lm(protein ~ N, data = .)),
+```
+- `map(data, ~ lm(protein ~ N, data = .))` applies the `lm()` function to each species' dataset.
+- The model predicts `protein` (protein content) based on `N` (nitrogen).
+- The results are stored in a new column `model`.
+
+4. Extract model results
+```r
+  tidied = map(model, tidy, conf.int=TRUE)) |>
+```
+- `tidy(model, conf.int=TRUE)` (from the `broom` package) extracts regression coefficients, standard errors, t-values, p-values, and confidence intervals.
+- The results are stored in a column named `tidied`.
+
+5. Unnest results into a flat table
+```r
+  unnest(tidied) |>
+```
+- `unnest(tidied)` expands the list-column into a normal data frame, so each row represents a regression coefficient for a species.
+
+6. Remove unnecessary columns
+```r
+  select(-data, -model) |>
+```
+- Drops the `data` and `model` columns, as they are no longer needed.
+
+7. Display the results in a formatted table
+```r
+  kable(digits = 3)
+```
+- Uses `kable()` (from `knitr`) to format the output table with three decimal places.
+
+Final Output:
+
+The final table will include:
+- The intercept and the slope for `N` (how protein content changes with nitrogen).
+- Standard errors for these coefficients.
+- t-values and p-values to assess significance.
+- Confidence intervals for the coefficients.
+
+### Your solution
+
+Your turn now. 
+Just copy and paste the template code above ([TEMPLATE-CODE-2]) into the next cell of code and apply *minimal modifications* so as to answer question 1c.
+
+
+[YOUR SOLUTION CODE HERE-3] [1 pt]
+
+```{r}
+# should be a slighlyt modified version of TEMPLATE-CODE-2)
+phytoplankton |> 
+  group_by(species) |>
+  nest() %>%
+  mutate(model = map(data, ~ lm(growth_rate ~ C_N, data = .)),
+         tidied = map(model, tidy, conf.int=TRUE)) |>
+  unnest(tidied) |>
+  select(-data, -model) |>
+  kable(digits = 3 )
+```
+
+
+**Which species has the smallest 'maximum growth rate'? What is the value of the 'maximum growth rate' for this species?**
+
+Write your answer in the next block: [1 pt]
+
+Hint: look at the last part of question Q1a.
+
+```{}
+The species that has the smallest maximum growth rate is:
+Thalassiosira weissflogii
+The value of this smallest maximum growth rate is: 
+~0.580 or 0.58 1/Days
+```
+
+
+
+# Problem 2 [5 pts]
+<hr style='border: 5px solid red;'>
+
+
+## 2.1 Data+context
+<hr style='border: 3px solid blue;'>
+
+Environment Canada provides extensive meteorological data at stations across Canada. Here I have gathered the observations of minimum and maximum temperature for six major airports in Canada. To make the dataset smaller I computed the mean of these temperatures for each month in the record.
+
+[RUN THIS TEMPLATE CODE-3 as PROVIDED]
+
+
+```{r}
+temperature <- read.csv("temperature.csv")
+names(temperature)
+```
+
+
+## 2.2 Question 2a
+<hr style='border: 3px solid blue;'>
+
+Write a R code that draws the mean maximum temperature in August as a function of year, for each station, using the following steps: 
+
+1. Use filter to include only data from the month of August (use the correct numerical value of variable `month`). 
+2. Make a faceted plot of the *mean maximum temperature* as a function of year. Each station should appear on its own facet. 
+3. Use the *loess method* to add a 'smooth' to show the pattern of this *mean maximum temperature* over year for each station.
+
+[YOUR SOLUTION CODE HERE-4]  [1 pt]
+
+```{r}
+temperature_august <- temperature |> 
+  filter(month == 8)
+
+  ggplot(temperature_august, aes(x = year, y = mean_max)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~ station_name) +
+  labs(title = "Mean Maximum Temperature in August by Year",
+       x = "Year",
+       y = "Mean Maximum Temperature")
+```
+
+
+
+## 2.3 Question 2b 
+<hr style='border: 3px solid blue;'>
+
+We create a new variable `year_1900` for the number of years after 1900 for each observation. 
+
+[RUN THIS TEMPLATE CODE-4 as PROVIDED]
+
+```{r}
+m2b <- temperature |> 
+  mutate(year_1900 = year - 1900) 
+names(m2b)
+```
+
+Now fit a linear regression model of mean *minimum* temperature as a function of year_1900, for Calgary *and* the month of September. [Note that the value of the predictor is 0 in year 1900.]
+Save this model in an object named 'lm2bc'.
+Use the tidy function to produce a table showing the full information (estimated values, standard error, p-value and confidence interval) for the intercept and slope of this model.
+
+Hint: this code is similar (but not identical) to the code in question Q1b.
+
+[TYPE AND RUN YOUR CODE HERE]  [1 pt]
+
+```{r}
+m2b <- temperature |> 
+  mutate(year_1900 = year - 1900) 
+names(m2b)
+
+calgary_sept <- m2b |> 
+  filter(station_name == "CALGARY INT'L A", month == 9)
+
+lm2bc <- lm(mean_min ~ year_1900, data = calgary_sept)
+
+lm2bc %>% 
+  tidy(conf.int = TRUE) %>% 
+  kable(digits = 2)
+```
+
+
+**Is this temperature increasing or decreasing with time?**
+
+Fix the next block by using the correct values only [1 pt]
+
+```{}
+The temperature is an increasing function of year since 1900.
+It is increasing by 0.01 C every year.
+In 100 years, this would give an increase of temperature of 1 degrees
+```
+
+
+## 2.4 Question 2c 
+<hr style='border: 3px solid blue;'>
+
+Draw a histogram of the residuals for your model.
+
+Hint: check the lecture L16 on linear models where I do show how to draw a histogram of the residuals of linear models. You can use tibble and apply the residuals function to the model fit in the last question (lm2bc) and pipe this to a ggplot with a histogram tool.
+
+[YOUR SOLUTION CODE HERE-1] [1 pt]
+
+
+```{r}
+residuals_df <- tibble(residuals = residuals(lm2bc))
+
+ggplot(residuals_df, aes(x = residuals)) +
+  geom_histogram(bins = 30, color = "black", fill = "gray") +
+  labs(title = "Histogram of Residuals",
+       x = "Residuals",
+       y = "Count")
+```
+
+Make a second plot of this data using `stat_ecdf`, which shows the proportion of data (on the y-axis) which is equal to or less than the corresponding value on the x-axis.
+
+### HINT
+
+You can use `stat_ecdf()` in `ggplot2` to plot the empirical cumulative distribution function (ECDF) of a dataset. Here's a basic example:
+
+Example: We will plot the empirical cumulative distribution function of a column of data (column value of dataframe data:
+
+
+```{r,eval=FALSE,echo=FALSE}
+# Generate random data
+
+set.seed(123)
+tibble(value = rnorm(100)) |>
+# Plot the ECDF of this column of 'observations
+ggplot( aes(x = value)) +
+  stat_ecdf(geom = "step", color = "blue", size = 1) +
+  theme_minimal() +
+  labs(title = "Empirical CDF", x = "Value", y = "ECDF")
+```
+
+Explanation
+- `stat_ecdf()` computes and plots the ECDF.
+- `geom = "step"` ensures a proper ECDF step function.
+- `color` and `size` customize the appearance.
+- The ECDF shows the proportion of data points that are less than or equal to a given value.
+
+### Your solution
+
+
+[YOUR SOLUTION CODE HERE-1] [1 pt]
+
+```{r}
+ggplot(residuals_df, aes(x = residuals)) +
+  stat_ecdf(geom = "step", color = "#ff5e00", size = 1) +
+  labs(title = "ECDF of Residuals",
+       x = "Residuals",
+       y = "ECDF")
+```
+
+
+
+
+

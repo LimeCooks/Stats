@@ -1,0 +1,90 @@
+---
+title: "Task: k-means"
+author: "Liam Cook"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(broom)
+```
+
+## K-means
+
+We will continue working with the iris data. Use k-means clustering on scaled versions of the four quantitative variables to create 3 clusters.
+
+```{r}
+iris_scaled <- iris |> select(-Species) |> scale()
+
+set.seed(1)  
+kmeans_result <- kmeans(iris_scaled, centers = 3, nstart = 25)
+
+print(kmeans_result)
+```
+
+Use `tidy` to show the centres of the three clusters.
+
+```{r}
+cluster_centers <- tidy(kmeans_result)
+print(cluster_centers)
+```
+
+Make a scatterplot of each observation using any two of the original quantitative variables. Colour the points according to the cluster. Use `augment` to combine the clustering results with the original data.
+
+```{r}
+clustered_data <- augment(kmeans_result, iris)
+
+clustered_data <- clustered_data |> rename(Cluster = .cluster)
+
+clustered_data$Cluster <- as.factor(clustered_data$Cluster)
+
+ggplot(clustered_data, aes(x = Sepal.Length, y = Petal.Length, colour = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  labs(title = "K-Means Clustering of Iris Dataset",
+       x = "Sepal Length (cm)",
+       y = "Petal Length (cm)") +
+  theme_minimal() +
+  scale_color_manual(values = c("red", "blue", "green"))
+
+```
+
+Use `augment` to combine the cluster and original data again. Count the number of combinations of each pair of species name and cluster number using group_by and summarize (or just count).
+
+```{r}
+clustered_data <- augment(kmeans_result, iris) |> rename(Cluster = .cluster)
+
+cluster_counts <- clustered_data |> 
+  group_by(Species, Cluster) |> 
+  summarise(count = n(), .groups = "drop")
+
+print(cluster_counts)
+```
+
+The four quantitative variables are all measured in cm and are all similar in magnitude. Perhaps the absolute values of the lengths should be retained. Repeat the cluster analysis below (showing the plot and the table of species and cluster numbers) with data that are **not** scaled.
+
+```{r}
+set.seed(1)
+kmeans_unscaled <- kmeans(iris |> select(-Species), centers = 3, nstart = 25)
+
+clustered_data_unscaled <- augment(kmeans_unscaled, iris) |> rename(Cluster = .cluster)
+
+ggplot(clustered_data_unscaled, aes(x = Sepal.Length, y = Petal.Length, colour = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  labs(title = "K-Means Clustering (Unscaled Data)",
+       x = "Sepal Length (cm)",
+       y = "Petal Length (cm)") +
+  theme_minimal() +
+  scale_color_manual(values = c("red", "blue", "green"))
+
+  cluster_counts_unscaled <- clustered_data_unscaled |> 
+  group_by(Species, Cluster) |> 
+  summarise(count = n(), .groups = "drop")
+
+print(cluster_counts_unscaled)
+```
+
+**Write a sentence or two that summarizes how well k-means clusters divide these three species into three clusters using these four variables. How do the results from scaled and unscaled data differ? Is one approach clearly better?**
+
+*K-means clustering separates Setosa well, but Versicolor and Virginica overlap. Scaling improves clustering by balancing all variables, unscaled data favours results toward features with larger values. Scaling looks like the better approach.*

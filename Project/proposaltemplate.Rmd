@@ -1,0 +1,146 @@
+---
+title: "Canadian Highschool Football Offensive & Defensive Tendancies"
+author: "Liam Cook"
+date: "2025-03-10"
+output: html_document
+---
+
+
+<!-- Submission and Evaluation
+
+
+Load this file in Rstudio and provide as much details as you can on your plan
+
+When finished, submit your proposal in pdf and Rmd format to BS (Term project proposal)
+
+Component	                    Score	Maximum
+Questions	                    NA	    2
+Data provided and read into R	NA	    1
+Data description	            NA    	3
+Visualization ideas          	NA    	3
+References                   	NA    	1
+Total	
+10
+
+
+Feedback
+
+
+Think of the following sentences as a rubric that distinguishes between excellent, good, and insufficient proposals.
+
+Your questions were easy to understand and of appropriate complexity. easy to understand but probably too ambitious for this project. easy to understand but too simple; try to think a bit more deeply about the data.
+
+You provide your data in the data folder and showed how it could be read with R. provided your data in the data folder but did not show how it could be read with R. did not provide your data in the data folder.
+
+You described the source, observations and variables in your data well enough so that I could make a connection between your data and your questions. You should provide more information about the source, observations, and variables in your data in your project report.
+
+You described appropriate visualizations for your data and questions. Your plans for visualizations were not detailed enough for me to see the connection to your data or questions. You should think more creatively and deeply about ways to visualize your data as you work on your project.
+
+You have a clear plan for the work of each team mate. You need to think more carefully about how you will divide the work of the project across your team.
+
+You provided a reference so I know where your data came from. You did not provide reference for your data; what was its source? There was important technical information in your proposal which did not have a source. Please provide it in your report.
+
+
+-->
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+# add any other packages you need here
+# if you need a package installed from github include as a comment the 
+# instructions to install the package, e.g.,
+# devtools::install_github("wilkelab/ggtext")
+```
+
+## Questions to be investigated
+
+1. How do Offensive and Defensive play calling tendencies shift based on field position and game situations. I.E. How often did X team call X Formation/Coverage/Run or Pass on the X Yard Line or X Quarter?
+2. Which defensive coverages (e.g., Cover 2, Cover 3, Cover 4) yield the highest success rates in certain situations. I.E. How effective was Cover X in X Down/Yard Line/Quarter?
+3. Which offensive formations were primarly used in run situations vs passing situations. I.E. How often did X team run in X formation?
+
+All of the above questions are those of which we study and analyze on a week to week basis during the season for each opponent.
+
+## Data to be used
+
+I will use a dataset containing high school football defensive statistics collected from our team's 2023-2025 seasons. This dataset has been exported from QwikCut and includes:
+
+
+- **Game Information:** Date, opponent.
+- **Play Characteristics:** Run vs. pass, play direction (left, right, middle), hash location, pass zone (area of the field), Formations, Coverage, Blitz, etc.
+- **Situational Data:** Down and distance, field position, game quarter.
+
+### Dataset Details
+- **Source:** Our team's game logs and statistical tracking via QwikCut Film review. All data is taken from sideline stat collectors and film review after games of ourselves and future opponents.
+- **Size:** Estimated 5000+ plays from multiple games across 2-3 seasons.
+- **Notes:** The data still needs a significant amount of time to clean and be expanded upon, so for now this data is from a couple of games with a good amount of data.
+- **Types of Data:**
+  - Categorical: Defensive coverage type, offensive formation, play direction, game quarter, opponent name.
+  - Quantitative: Number of plays per coverage, number of plays and play types per offensive formation, field position, pass zone distribution. Player stats can also be added, however, they are not linked play by play.
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(skimr)
+
+loc <- "C:/Users/lm820/OneDrive/Desktop/School/Stats/Project/GameData.xlsx" #This path may need to be updated depending on where you saved the folder
+
+# Read the Excel file and explicitly set column types to avoid incorrect assumptions
+game_data <- read_excel(loc, sheet = 1, col_types = c(rep("text", 67)))
+
+# Convert numeric columns back after loading
+numeric_cols <- c("Down", "Distance", "Start Yardline", "End Yardline", "GN/LS", "Pass Zone")
+
+# Convert only if the column exists in the dataset (avoids errors if a column is missing)
+numeric_cols <- intersect(numeric_cols, colnames(game_data))
+game_data[numeric_cols] <- lapply(game_data[numeric_cols], as.numeric)
+
+# **Automatically detect and exclude empty columns**
+empty_cols <- colnames(game_data)[colSums(!is.na(game_data)) == 0]  # Columns where all values are NA
+game_data_filtered <- game_data %>% select(-all_of(empty_cols))  # Remove them dynamically
+
+
+glimpse(game_data_filtered)
+skim(game_data_filtered)
+```
+
+## Ideas for visualization
+
+1. **Heatmap of Defensive Success Rates by Field Position**
+   - X-axis: Field Position
+   - Y-axis: Defensive Call
+   - Color: Success rate in preventing 1st downs and/or yards gained
+
+2. **Bar Chart of Play Calls by Situation**
+   - X-axis: Down and Distance
+   - Y-axis: Frequency of Defensive or Offensive Calls
+   - Color: Defensive Coverage Type or Offensive formation
+
+3. **Directional Flow Chart of Plays**
+   - Visualizing how often plays go left, right, or middle and defensive response rates
+
+4. **K-means Clustering of Offensive Tendencies**
+   - Cluster analysis grouping offensive tendencies based on field position, play direction, and offensive formation
+  
+## Team planning
+
+- **Liam:** Data cleaning and preparation, exploratory data analysis. I have been working with this data for years.
+- **Liam:** Creating and refining visualizations.
+- **Liam:** Writing and structuring the final report.
+- **Liam:** Preparing presentation. Theres a good chance this gets presented to the team!
+
+## Challenges anticipated
+
+- Ensuring data quality and consistency across different sources (games).
+- Likely that some games are much more thoroughly analyzied and documented than others.
+- Selecting the most informative visualizations for complex relationships.
+- Properly interpreting clustering and results for defensive/offensive tendencies.
+
+## References
+
+- Dataset source: Exported from QwikCut (2023-2025 team and opponent statistics)
+- Football and tendancy knowledge will come from me as a previous player and the defensive cordinator for this team when analyzing data.
+
