@@ -1,0 +1,516 @@
+---
+title: "STAT2430: Assignment 4"
+author: "Liam Cook"
+date: "2024-03-16"
+output: pdf_document
+---
+
+# Introduction
+
+Each question is worth 5 marks, for a total of 15.
+The value will be scaled in Brightspace so that all assignments are worth the same amount.
+
+## Goals
+
+The goal of this assignment is to practice PCA and K-means methods for multivariate data visualization. 
+
+You will have to read data available from the [Tidy Tuesday](https://github.com/rfordatascience/tidytuesday) project. For more on Tidy Tuesday see our lesson on [data sources](https://andrewirwin.github.io/data-visualization/data-sources.html).
+
+You will:
+
+1. first read and explore the data (EDA), inspect/graph/tabulate properties of the dataset (e.g. the number of missing values per column)
+
+2. then apply the various types of analyses (unsupervised) seen in week 9 to a subset of the dataset that does not have any missing value.
+
+## Required libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse, quietly = TRUE)
+# library(tidytuesdayR)
+library(ggfortify)
+library(broom)
+library(ggrepel)
+library(kableExtra)
+library(janitor)
+```
+
+## Exploratory Data Analysis  [5 pts]
+
+(Exploratory Data Analysis is also called EDA, or simply Data Exploration).
+
+For this assignment, you will use crop yield data from Tidy Tuesday 2020-09-01. This dataset lists for many years and countries the yield (tonnes per hectare) for 11 different crops.
+
+Note that there is a column  named 'entity'. The value of 'entity' is either a country (e.g. Canada) or a region name (e.g. Europe). This creates messy redundancy. Therefore, I have listed the names of non-country values (regions) in a vector called strangeent.
+
+Let us read the dataset directly from the URL on github (you only need to have an internet connection for this)
+
+```{r}
+d=read.csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/refs/heads/main/data/2020/2020-09-01/key_crop_yields.csv')|>janitor::clean_names()
+names(d)
+```
+
+You could also read the data like this,but this is overkill. Do NOT use this code! 
+
+```{r,eval=FALSE,echo=FALSE}
+# tuesdata <- tidytuesdayR::tt_load('2020-09-01')
+# d <- tuesdata$key_crop_yields
+#key_crop_yields <- d |>janitor::clean_names()
+```
+
+
+Now run the following code. It will create a list, named strangeent, of 'unwanted' values of entity.
+
+```{r}
+write.csv(unique(d$entity),file='une.csv')
+strangeent=unique(d$entity)[
+c(2,6,11,12,14,23,44,64,65,66,74,75,76,77,117,120,126,141,142,152,161,162,163,165,198,202,203,206,207,208,212,242,243,244,245)]
+```
+
+You can run this code for yourself (do not suppress eval=FALSE) to check the values of strangeent:
+
+```{r,eval=FALSE}
+strangeent
+```
+
+
+[Assignment QUESTION]
+
+Apply the function *subset* of *dplyr* to datframe *d* so as  to keep only the records of *d* for which the value of column *entity* is NOT in the vector *strangeent*. Save the result to a dataframe called *key_crop_yields*.
+
+[code snippet-1: 1 pt]
+
+```{r}
+# replace NA by your own R code.
+key_crop_yields = d %>% filter(!entity %in% strangeent)
+```
+
+
+Run the next code snippet to check for yourself that no entity value in dataframe key_crop_yields is in strangeent. Do not remove eval=FALSE)
+
+```{r,eval=FALSE}
+sum(key_crop_yields$entity %in%strangeent)
+```
+
+Finally run the next piece of code to rename the dataframe as d, for simplicity. 
+
+```{r}
+# make a copy of the dataframe under the name d.
+d=key_crop_yields
+```
+
+From now on, you can use the dataframe *d*. (in later questions we will also build subsets of d).
+
+[Assignment QUESTION]
+
+First, take a look at the data. Make a table that counts the number of observation per geo-political entity (these are stored in column entity). 
+
+[code snippet-2: 1 pt]
+
+```{r}
+d %>% count(entity)
+```
+
+
+[Assignment QUESTION]
+
+Graph the number of entities with data for each year.
+(So I want to see the graph of the function n=n(t) where n is the number of entities=countries measured in year t. Note that you will first have to count how many entities are measured each year. ).
+
+[code snippet-3: 1 pt]
+
+```{r}
+# Count number of unique entities per year
+yearly_counts = d %>% group_by(year) %>% summarise(n = n_distinct(entity))
+
+# Plot the number of entities per year
+ggplot(yearly_counts, aes(x = year, y = n)) +
+  geom_line() +
+  labs(title = "Number of Entities with Data per Year",
+       x = "Year",
+       y = "Number of Entities")
+```
+
+
+[Assignment QUESTION]
+
+We now want to create a subset of the dataframe with no missing data. 
+Make a table that counts the number of missing data for each of the crop yields and the total number of observations in the table. 
+
+[code snippet-4: 0.5 pt]
+
+Hint: 
+
+You can create a summary table that sums the NA values in each column. Check how to use the function summarize_all (use the R documentation or look for this online).
+
+```{r}
+# Count missing values per column using summarize_all()
+missing_counts = d %>%
+  summarize_all(~ sum(is.na(.)))
+
+# Print the table in an easy-to-read format
+print(missing_counts)
+```
+
+
+
+[Assignment QUESTION]
+**Which 4 crops have the most non-missing observations?**
+
+[text answer: 0.5 pt]
+
+```{}
+Write your answer here.
+The 4 crops that have the most NON-MISSING observatons are:
+1. Maize
+2. Potatoes
+3. Bananas
+4. Rice
+
+```
+
+Let us now build a new subset of d, named *crop_subset*.
+
+This is done by the next cell of code (run it!) which uses the filter and select functions to pick out a subset of the observations and variables that have no missing data. 
+
+I have also simplified the variable names to remove "(tonnes per hectare)" from each name.
+
+```{r}
+crop_subset <- d |>
+  rename_with(function(x) str_remove(x, "_tonnes_per_hectare")) |>
+  filter(year > 1995) |>
+  filter(year == 1996 | year == 2015) |>
+  select(entity, year, maize, potatoes, bananas, rice, beans) |>
+  rowwise() |>
+  mutate(na_count = sum(is.na(c_across(-entity))),
+         Year_f = factor(year)) |>
+  filter(na_count == 0) |>
+  select(-na_count)
+```
+
+
+[Keep eval=FALSE. runm this for yourself. No need to run this in the knitted file.]
+
+```{r,eval=FALSE}
+str(crop_subset)
+head(crop_subset)
+```
+
+
+[Assignment QUESTION]
+
+Make a scatter plot of potatoes (x) and rice (y), and color points by values of Year_f. 
+
+[code snippet-5: 1 pt]
+
+```{r}
+ggplot(crop_subset, aes(x = potatoes, y = rice, color = Year_f)) +
+  geom_point() +
+  labs(title = "Potatoes vs. Rice Yield (1996 & 2015)",
+       x = "Potatoes Yield",
+       y = "Rice Yield",
+       color = "Year") +
+  theme_minimal()
+```
+
+
+## PCA [5 pts]
+
+[Assignment QUESTION]
+
+Write a R code that performs a PCA on the crop yield data and saves the result to object crop_subset_pca.
+
+Hint: 
+
+Before applying PCA, create a new dataframe *crop_subset_q* that only keeps the quantitative columns of *crop_subset*.
+
+Be certain to scale your data (`scale=TRUE`) so they all have the same variance, since the yields are very different for each crop and we don't want the crop with the largest yield (tonnes per hectare) to automatically dominate the analysis and visualization.
+
+When crop_subset_pca is calculated, you can create a summary of this object to display the results.
+
+[code snippet-6: 1 pt]
+
+```{r}
+crop_subset_q = crop_subset %>%
+  select(where(is.numeric))
+
+crop_subset_pca = prcomp(crop_subset_q, scale = TRUE)
+
+summary(crop_subset_pca)
+```
+
+
+
+[Assignment QUESTION]
+
+Make a graph that shows a point for each observation, uses colour or shape to distinguish the years of the observations, and includes the arrows for the yields projected on the first two principal components.
+
+In other words: do a biplot from object crop_subset_pca
+
+Hint:
+
+you can use the autoplot function. Make sure that the loadings and loadings.label arguments are set to TRUE.
+
+[code snippet-7: 1 pt]
+
+```{r}
+autoplot(crop_subset_pca, data = crop_subset, colour = "Year_f",
+         loadings = TRUE, loadings.label = TRUE) +
+  labs(title = "PCA Biplot of Crop Yields (1996 & 2015)",
+       x = "PC1",
+       y = "PC2",
+       colour = "Year") +
+  theme_minimal()
+```
+
+
+[Assignment QUESTION]
+
+**Write a short paragraph that summarizes the trend along the first and second principal components.**
+
+Hint: explain which variables are more aligned with the PC1 (resp. PC2) axis.
+
+[text answer: 1pt]
+
+```{}
+The first PC1 mainly captures variation in total crop yield, with maize, rice, and potatoes aligning strongly along that axis. 
+That suggests that PC1 is a measure of overall productivity. The second PC2 highlights differences in specific crops, with bananas strongly influencing that axis. 
+This indicates that PC2 may represent variations in crop specialization or growing conditions in its region. 
+Additionally, the distribution of points for 1996 and 2015 suggests a shift in crop production trends over time, with some countries moving in a different direction along PC1 and PC2.
+```
+
+
+[Assignment QUESTION]
+
+Make a new PCA using only observations from ONE of the two years. 
+
+[code snippet-8: 1 pt]
+
+```{r}
+crop_subset_one_year = crop_subset %>%
+  filter(year == 2015)
+
+crop_subset_q_one_year = crop_subset_one_year %>%
+  select(-entity, -year)
+
+
+str(crop_subset_q_one_year)
+crop_subset_q_one_year = crop_subset_q_one_year %>%
+  mutate(across(everything(), as.numeric)) 
+
+crop_subset_q_one_year = crop_subset_q_one_year %>%
+  select(where(~ var(.) > 0))
+
+crop_subset_pca_one_year = prcomp(crop_subset_q_one_year, scale = TRUE)
+
+summary(crop_subset_pca_one_year)
+
+highest_banana = crop_subset %>%
+  group_by(entity) %>%
+  summarise(max_banana = max(bananas, na.rm = TRUE)) %>%
+  arrange(desc(max_banana)) %>%
+  slice(1) %>%
+  pull(entity)
+
+highest_beans = crop_subset %>%
+  group_by(entity) %>%
+  summarise(max_beans = max(beans, na.rm = TRUE)) %>%
+  arrange(desc(max_beans)) %>%
+  slice(1) %>%
+  pull(entity)
+
+low_yield_country = crop_subset %>%
+  group_by(entity) %>%
+  summarise(mean_yield = mean(c(maize, potatoes, bananas, rice, beans), na.rm = TRUE)) %>%
+  arrange(mean_yield) %>%
+  slice(1) %>%
+  pull(entity)
+
+  highest_banana
+  highest_beans
+  low_yield_country
+
+```
+
+[Assignment QUESTION]
+
+**Identify a country in each of the following three categories:**
+
+[text answer: 1 pt]
+
+Hint: 
+
+You can use group_by and arrange(desc(VAR)) to retrieve the top  values of a variable VAR 
+of your choice. VAR can either be one of the original columns, or a new column created with statistical functions (such as mean()). You will need to engineer this for the third XXX value.
+
+```{r}
+highest_banana = crop_subset %>%
+  group_by(entity) %>%
+  summarise(max_banana = max(bananas, na.rm = TRUE)) %>%
+  arrange(desc(max_banana)) %>%
+  slice(1) %>%
+  pull(entity)
+
+highest_beans = crop_subset %>%
+  group_by(entity) %>%
+  summarise(max_beans = max(beans, na.rm = TRUE)) %>%
+  arrange(desc(max_beans)) %>%
+  slice(1) %>%
+  pull(entity)
+
+low_yield_country = crop_subset %>%
+  group_by(entity) %>%
+  summarise(mean_yield = mean(c(maize, potatoes, bananas, rice, beans), na.rm = TRUE)) %>%
+  arrange(mean_yield) %>%
+  slice(1) %>%
+  pull(entity)
+
+  highest_banana
+  highest_beans
+  low_yield_country
+
+```
+
+```{}
+Replace XXX by the name of an entity=country
+* country with Highest Banana yield: Indonesia
+* country with Highest Bean yield: Sudan
+* Country with 'low' yields for many of the selected crops: Democratic Republic of Congo
+```
+
+
+
+## K-means clustering [5 pts]
+
+[Assignment QUESTION]
+
+Perform a k-means clustering on dataframe crop_subset to divide records into 2 groups 
+Use all quantitative yields columns in crop_subset.
+Save your result in object kclust1.
+
+[code snippet-9: 1 pt]
+
+```{r}
+set.seed(123) # do not remove this code. write your own code below.
+crop_subset_kmeans = crop_subset %>%
+  select(maize, potatoes, bananas, rice, beans)
+
+kclust1 = kmeans(crop_subset_kmeans, centers = 2, nstart = 25)
+print(kclust1)
+
+crop_subset$cluster = as.factor(kclust1$cluster)
+head(crop_subset)
+
+table(crop_subset$cluster)
+
+```
+
+
+[Assignment QUESTION]
+
+Show a table of the centers of each of the clusters you formed.
+
+[Meaning show the coordinates of the cluster means vectors, for each cluster]
+
+[code snippet-10: 1 pt]
+
+Hint
+
+Apply tidy and pipe to kable. Keep 2 digits
+
+```{r}
+cluster_centers = as.data.frame(kclust1$centers) %>%
+  mutate(Cluster = row_number()) %>% 
+  relocate(Cluster)
+
+cluster_centers %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
+  kable()
+```
+
+
+[Assignment QUESTION]
+
+Make a scatter plot of your data in the (x=potatoes, y=maize) space, colouring each point according to the cluster number. 
+
+[code snippet-11: 1 pt]
+
+Hint
+
+Use the augment function and mimic the code in the lecture of Week 9.
+
+
+```{r}
+clustered_data = augment(kclust1, crop_subset)
+
+ggplot(clustered_data, aes(x = potatoes, y = maize, color = .cluster)) +
+  geom_point(size = 3, alpha = 0.7) +
+  labs(title = "K-Means Clustering: Potatoes vs. Maize",
+       x = "Potatoes Yield",
+       y = "Maize Yield",
+       color = "Cluster") +
+  theme_minimal()
+```
+
+
+[Assignment QUESTION]
+
+Make a scatter plot in potatoes,maize space where you show only, in blue, points that have been clustered to cluster number 2. Each point should be shown with its label (=country name=value of the entity column).
+
+Note that the scatter plot should ONLY show points that belong in cluster 2 (in blue)
+
+
+[code snippet-12: 1 pt]
+
+```{r}
+cluster_2_data = crop_subset %>%
+  filter(cluster == "2")
+
+ggplot(cluster_2_data, aes(x = potatoes, y = maize, label = entity)) +
+  geom_point(color = "blue", size = 3) + 
+  geom_text_repel(size = 3, color = "blue") +
+  labs(title = "Cluster 2 Countries: Potatoes vs. Maize",
+       x = "Potatoes Yield",
+       y = "Maize Yield") +
+  theme_minimal()
+
+```
+
+
+[Assignment QUESTION]
+
+**Discuss qualitatively the interpretation of each cluster. Explain which kind of country is found in cluster 1 and which kind is found in cluster 2.**
+
+[text answer: 1 pt]
+
+Hint
+
+You may have to print the list of countries in each cluster to identify 'a pattern'.
+
+
+```{r}
+cluster_1_countries = crop_subset %>%
+  filter(cluster == "1") %>%
+  select(entity)
+
+cluster_2_countries = crop_subset %>%
+  filter(cluster == "2") %>%
+  select(entity)
+
+print("Cluster 1 Countries:")
+print(cluster_1_countries)
+
+print("Cluster 2 Countries:")
+print(cluster_2_countries)
+```
+
+```{}
+Cluster 1 primarily consists of countries with lower agricultural productivity for bananas and potatoes specifically. 
+These countries tend to have lower overall crop yields across all crops. 
+This cluster may include regions with less developed agricultural infrastructure.
+
+Cluster 2 includes countries with significantly higher crop yields, particularly for bananas and potatoes. 
+These are likely to be countries with advanced systems, good irrigation and fertilizers, and nicer climates for crop production. 
+```
+
+
