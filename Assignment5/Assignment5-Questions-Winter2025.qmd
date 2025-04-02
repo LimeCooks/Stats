@@ -1,0 +1,155 @@
+---
+title: "Assignment 5"
+author: "Your Name"
+date: "2024-01-23"
+format:
+  revealjs:
+    self-contained: true
+---
+
+
+
+```{r echo=FALSE}
+# Each question is worth 5 marks for a total of 15. The grade will be scaled to 10 in Brightspace so that each assignment is worth the same amount.
+```
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.align = 'center', fig.width = 7, fig.asp = 0.5, dpi=150)
+library(tidyverse, quietly = TRUE)
+library(maps)
+library(mapproj)
+library(ggthemes)
+# library(tidytuesdayR)
+library(janitor)
+```
+
+##  Instructions
+
+Your work for this assignment will be in the form of a slide presentation.
+
+* Hide your code on each slide
+
+* Update the author and date at the top of this file.
+
+* Delete all instructions before submitting your work.
+
+* Only keep in this presentation one slide for the title and one slide for each cell marked KEEPIT
+
+* keep R code needed to load libraries or read data but do not show the code or print anything so that no slide is needed for these chunks of code
+
+* upload : 1. your qmd file finished and 2. your rendered file as a pdf 
+
+
+For more details on authoring quarto presentations please visit 
+this [tutorial](https://quarto.org/docs/presentations/revealjs/)
+
+
+## Question 1 Instructions
+
+Start by making a basic world map using geom_map on the next slide.
+
+Now, change the map following these steps:
+
+* Use 'world2' instead of world. This map puts the date line and Pacific Ocean in the middle of the map.
+* Use the [Mollweide](https://en.wikipedia.org/wiki/Mollweide_projection) projection by adding `coord_map("mollweide")`
+* Flip the y (latitude) axis, to put the southern hemisphere in the top half of the map. You can do this by creating a new data frame called `world_flipped` and using mutate to define lat as -lat.  See for example [this map](https://www.mapshop.com/upside-down-world-wall-map/)
+* Use theme_map from ggthemes to get rid of the axis labels and grid lines.
+
+## Question 1 World map
+
+```{r}
+# KEEPIT  solution code for question 1
+# but do not show the code in the slide presentation
+
+
+```
+
+## Question 2 Instructions 
+
+We will use the same UN crop data we saw earlier in the course.
+
+```{r data, include = FALSE, cache=TRUE}
+# Code to access original source is commented out below; I have given you a copy of the data in the repository.
+# tuesdata <- tidytuesdayR::tt_load(2020, week = 36)
+# key_crop_yields <- tuesdata$key_crop_yields
+# key_crop_yields <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/key_crop_yields.csv')
+# The variable names in this data table have spaces in them, making it hard to work with the names
+# I will use the janitor page to simplify the names
+key_crop_yields <- read_csv("key_crop_yields.csv") |>
+  janitor::clean_names()
+```
+
+Map the yield of any crop you choose from any **single year** you choose on the map, using colour shades to indicate the magnitude of the crop yield.
+
+You will need to rename "Entity" as "region" to match the country names in the UN data to the regions on the map. Some countries will be missing, but I got about 190 matching names.
+
+Make a normal (not upside down!) map.
+
+## Question 2 Map
+
+Fix the code in this block and then change `eval=FALSE` to `eval=TRUE`.
+
+```{r eval=FALSE}
+# KEEPIT  solution code for question 2
+# but do not show the code in the slide presentation and remove eval=TRUE when your code is good
+
+key_crop_yields |> filter(Year == XXXXX) |>
+  rename(region = entity) |>
+  ggplot(aes(map_id = region)) +
+     
+  
+  theme(legend.position = "bottom", legend.direction = "horizontal")
+```
+
+
+## Question 3 Introduction
+
+Here is a [map](https://paulvanderlaken.com/tag/worldmap/) with countries of the world shown as [squares](https://www.maartenlambrechts.com/2017/10/22/tutorial-a-worldtilegrid-with-ggplot2.html), like the statebins map. It's a very different look for the political world!
+
+```{r tilemap, cache=TRUE}
+# link = "https://gist.githubusercontent.com/maartenzam/787498bbc07ae06b637447dbd430ea0a/raw/9a9dafafb44d8990f85243a9c7ca349acd3a0d07/worldtilegrid.csv"
+# geodata <- read.csv(link) |> as_tibble() # load in geodata
+geodata <- read_csv("geodata.csv")
+```
+
+```{r}
+worldmap <- ggplot(geodata) +
+  geom_rect(aes(xmin = x, ymin = y, 
+                xmax = x + 1, ymax = y + 1,
+                fill = region)) +
+  geom_text(aes(x = x, y = y, 
+                label = alpha.3),
+            size = 1.5, 
+            nudge_x = 0.5, nudge_y = -0.5,
+            vjust = 0.5, hjust = 0.5) +
+  scale_y_reverse() 
+worldmap
+```
+
+## Question 3 Instructions 
+
+
+Map the yields of a crop of your choice onto this geom_rect map by using crop yields in the place of the region variable for fill.
+
+You will need to combine the crop yield for one crop in one year with the data for drawing the map. I'll show you how to do this with a "left_join". Change the year and crop so your data subset is different from mine. Modify the map on the next slide to show this new data.
+
+The code in this block does not work, so I have set the options to not evaluate the code when rendered (`eval=FALSE`). You will need to fix the code and change this option to `eval=TRUE` or the document will not render correctly.
+
+```{r eval=FALSE}
+crop_subset <- key_crop_yields |> filter(year == XXXX) |>
+  rename(maize = maize_tonnes_per_hectare,
+         name = entity) |>
+  select(name, maize)
+geodata_plus_crop <- left_join(geodata, crop_subset, by = "name")
+```
+
+
+## Question 3 Map
+
+```{r}
+# KEEPIT  solution code for question 3
+# but do not show the code in the slide presentation 
+
+```
