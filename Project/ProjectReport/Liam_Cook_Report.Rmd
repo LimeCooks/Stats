@@ -1,0 +1,765 @@
+---
+title: "Scouting Opponent Offenses: A Situational Analysis of High School Football Tendencies"
+author: "Liam Cook"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    theme: flatly
+    highlight: tango
+---
+
+# Abstract
+
+This project examines offensive play-calling tendencies in Nova Scotia high school football, focusing on opponent scouting. Drawing on data from five carefully selected games, the analysis explores how opposing offenses adapt their strategies based on field position, down and distance, and situational context. The objective is to uncover patterns in formation usage and run-pass balance that can inform defensive game planning. By converting subjective film review into structured scouting data, this report aims to offer actionable insights for coaches and coordinators preparing for future matchups.
+
+# Introduction
+
+Game planning and opponent scouting are foundational to success in high school football. Traditionally, these processes rely heavily on qualitative film review and coach intuition. This report supplements that work with a structured, data-informed approach, analyzing tendencies from five games of offensive play data drawn from opponent film. 
+
+Rather than predicting outcomes such as yardage gained or scoring, the focus is on describing offensive behaviors: how teams adjust their formations, play calls, and tendencies across different downs, distances, and field positions. The analysis aims to reveal identifiable trends that can shape defensive strategy, from base alignments to situational calls.
+
+# Data
+
+The dataset was manually compiled through detailed film review of five games, selected for their quality and diversity of opponent styles. Each play in the dataset is tagged with the following attributes:
+
+- **Offensive formation**: Categorical identifier for the pre-snap alignment.
+- **Play type**: Coded as either a run or pass.
+- **Field position**: Denoted by yard line, with values indicating team territory.
+- **Down**: First through third (or fourth in rare short-yardage situations).
+- **Distance**: Yards to gain for a first down.
+- **Quarter**: Game phase to capture temporal context.
+- **Offense team**: Identifies the team on offense.
+
+Plays with incomplete or inconsistent data were removed to ensure reliability of analysis. The final dataset reflects a representative sample of opponent behavior across a range of situations and formations, laying the groundwork for meaningful pattern recognition in the following sections.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# Load libraries
+library(tidyverse)   # Core packages including ggplot2, dplyr, tidyr
+library(readxl)      # For reading Excel files
+library(janitor)     # Data cleaning utilities
+library(DT)          # Interactive data tables
+library(scales)      # Scale functions for ggplot2
+library(ggrepel)     # Better label placement for ggplot2
+
+# Load and clean data
+scout_data <- read_excel("data/Game_data.xlsx")
+
+# Construct field position bins for analysis
+scout_data <- scout_data %>%
+  mutate(
+    Offense_Team = na_if(trimws(Offense_Team), ""),
+    Offense_Formation = na_if(str_to_upper(trimws(Offense_Formation)), ""),
+    Field_Zone = trimws(Field_Zone),
+    Start_Yardline = suppressWarnings(as.integer(Start_Yardline)),
+
+    Zone_Bin = case_when(
+      Field_Zone == "Own" & Start_Yardline >= 1 & Start_Yardline <= 10  ~ "Backed-Up",
+      Field_Zone == "Own" & Start_Yardline >= 11 & Start_Yardline <= 25 ~ "Own-Zone",
+      Field_Zone == "Own" & Start_Yardline >= 26 & Start_Yardline <= 55 ~ "Midfield",
+      Field_Zone == "Opp" & Start_Yardline >= 26                        ~ "Opponent-Territory",
+      Field_Zone == "Opp" & Start_Yardline >= 6  & Start_Yardline <= 25 ~ "Redzone",
+      Field_Zone == "Opp" & Start_Yardline >= 1  & Start_Yardline <= 5  ~ "Goal line",
+      TRUE ~ NA_character_
+    ),
+    
+    Zone_Bin = factor(Zone_Bin, levels = c(
+      "Backed-Up", "Own-Zone", "Midfield",
+      "Opponent-Territory", "Redzone", "Goal line"
+    ))
+  )
+```
+
+# Methodology
+
+To explore opponent offensive behavior, plays were grouped and analyzed across key situational variables including field zone, down and distance, and offensive formation. The dataset was cleaned and structured to support targeted, context-specific insights.
+
+This analysis is organized around the following core questions:
+
+1. **How do opposing offenses use formations situationally?**
+   - Which formations are most frequently used in each field zone? *(Visual: Formation frequency by field zone)*
+   - How does formation usage vary across opponent teams? *(Visual: Formation diversity by opponent team)*
+
+2. **How does play type (run vs. pass) vary by game context?**
+   - What patterns emerge in play selection based on down and distance? *(Visual: Play type by down and distance)*
+   - How does play calling change across different field zones? *(Visual: Play type by field position)*
+
+3. **What are the tendencies tied to field location?**
+   - How do offenses approach different field areas—do they show conservative or aggressive tendencies? *(Visual: Run/pass by field zone – overlaps with above)*
+
+4. **Which formations are most predictive of play type?**
+   - Which formations are strongly skewed toward run or pass? *(Visual: Formation run/pass skew heatmap)*
+   - Are any formations balanced or unpredictable in their play selection?
+
+All data wrangling and visualization were conducted in R using the `tidyverse` suite of packages. A variety of visual tools—including stacked bar plots, scatterplots, and heatmaps—were used to surface patterns in opponent tendencies and support practical scouting insights.
+
+
+# Results
+
+## Formation Frequency by Field Zone
+
+Understanding how offensive formations are deployed across the field can help anticipate tendencies based on field position. In this section, plays are segmented into six key field zones: **Backed-Up**, **Own-Zone**, **Midfield**, **Opponent Territory**, **Redzone**, and **Goal Line**. For each zone, a data table displays the offensive formation, play type, and the specific play call used by each team.
+
+These breakdowns allow for quick identification of high-frequency formations within each field context, which is critical for defensive preparation. Certain formations may appear more often when teams are backed up in their own territory, while others might be reserved for scoring opportunities near the goal line.
+
+```{r table-backed-up, echo=FALSE}
+scout_data %>%
+  filter(Field_Zone == "Own", Start_Yardline >= 1, Start_Yardline <= 25) %>%
+  select(Game_Label, Offense_Team, Start_Yardline, Field_Zone,
+         Offense_Formation, Play_Type, Offense_Play) %>%
+  datatable(caption = "Backed-Up (Own 1–25)", options = list(pageLength = 10, scrollX = TRUE))
+```
+
+```{r table-own-zone, echo=FALSE}
+scout_data %>%
+  filter(Field_Zone == "Own", Start_Yardline >= 26, Start_Yardline <= 45) %>%
+  select(Game_Label, Offense_Team, Start_Yardline, Field_Zone,
+         Offense_Formation, Play_Type, Offense_Play) %>%
+  datatable(caption = "Own-Zone (Own 26–45)", options = list(pageLength = 10, scrollX = TRUE))
+```
+
+```{r table-midfield, echo=FALSE}
+scout_data %>%
+  filter(
+    (Field_Zone == "Own" & Start_Yardline >= 46 & Start_Yardline <= 55) |
+    (Field_Zone == "Opp" & Start_Yardline >= 46 & Start_Yardline <= 55)
+  ) %>%
+  select(Game_Label, Offense_Team, Start_Yardline, Field_Zone,
+         Offense_Formation, Play_Type, Offense_Play) %>%
+  datatable(caption = "Midfield (Own 46–55 & Opp 55–46)", options = list(pageLength = 10, scrollX = TRUE))
+```
+
+```{r table-opponent-territory, echo=FALSE}
+scout_data %>%
+  filter(Field_Zone == "Opp", Start_Yardline >= 26, Start_Yardline <= 44) %>%
+  select(Game_Label, Offense_Team, Start_Yardline, Field_Zone,
+         Offense_Formation, Play_Type, Offense_Play) %>%
+  datatable(caption = "Opponent-Territory (Opp 26–44)", options = list(pageLength = 10, scrollX = TRUE))
+```
+
+```{r table-redzone, echo=FALSE}
+scout_data %>%
+  filter(Field_Zone == "Opp", Start_Yardline >= 6, Start_Yardline <= 25) %>%
+  select(Game_Label, Offense_Team, Start_Yardline, Field_Zone,
+         Offense_Formation, Play_Type, Offense_Play) %>%
+  datatable(caption = "Redzone (Opp 6–25)", options = list(pageLength = 10, scrollX = TRUE))
+```
+
+```{r table-goal-line, echo=FALSE}
+scout_data %>%
+  filter(Field_Zone == "Opp", Start_Yardline >= 1, Start_Yardline <= 5) %>%
+  select(Game_Label, Offense_Team, Start_Yardline, Field_Zone,
+         Offense_Formation, Play_Type, Offense_Play) %>%
+  datatable(caption = "Goal Line (Opp 1–5)", options = list(pageLength = 10, scrollX = TRUE))
+```
+
+These field zone-specific breakdowns highlight how spatial context influences offensive structure. However, formation usage is not solely determined by field position—team identity and coaching philosophy also play a major role. To explore this further, the next section analyzes formation diversity across opponent teams, offering a comparative view of how different programs approach offensive play design.
+
+## Top Formations by Team and Field Zone
+
+While previous tables provided a breakdown of formation usage by field area, this visualization summarizes that information across all opponents to highlight key tendencies. Specifically, it displays the **top two offensive formations** used by each team in each field zone, along with a color fill representing the **total number of plays** in that zone.
+
+This view serves two purposes:
+
+- It shows how each team’s formation strategy shifts as they move across the field.
+- It highlights teams that are consistent in their approach versus those who vary formation choices more heavily by context.
+
+Hovering over each tile reveals additional formations used in that zone by the team—those that didn’t crack the top two. Teams with broader formation usage will show a wider spread of tooltip entries, while more predictable teams will have little or no tooltip data.
+
+This is a powerful scouting tool for defensive coordinators, as it surfaces **field-position-based tendencies by team**. If a team relies heavily on a certain look near the goal line or always opens drives in the backed-up zone with a particular set, those habits become clear at a glance.
+
+```{r formation-grid-final, echo=FALSE, message=FALSE, fig.width=12, fig.height=7, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+
+# Field zone bin labels (top-down)
+zone_order <- c(
+  "Goal line (1–5)", 
+  "Redzone (6–25)", 
+  "Opponent-Territory (26–44)",
+  "Midfield (45–55)", 
+  "Own-Zone (26–44)", 
+  "Backed-Up (1–25)"
+)
+
+# Assign zone bins using Field_Zone + Start_Yardline
+scout_data <- scout_data %>%
+  mutate(Zone_Bin = case_when(
+    Field_Zone == "Own" & Start_Yardline >= 1 & Start_Yardline <= 25 ~ "Backed-Up (1–25)",
+    Field_Zone == "Own" & Start_Yardline >= 26 & Start_Yardline <= 45 ~ "Own-Zone (26–44)",
+    (Field_Zone == "Own" & Start_Yardline >= 46 & Start_Yardline <= 55) |
+    (Field_Zone == "Opp" & Start_Yardline >= 46 & Start_Yardline <= 55) ~ "Midfield (45–55)",
+    Field_Zone == "Opp" & Start_Yardline >= 26 & Start_Yardline <= 44 ~ "Opponent-Territory (26–44)",
+    Field_Zone == "Opp" & Start_Yardline >= 6 & Start_Yardline <= 25 ~ "Redzone (6–25)",
+    Field_Zone == "Opp" & Start_Yardline >= 1 & Start_Yardline <= 5 ~ "Goal line (1–5)",
+    TRUE ~ NA_character_
+  ))
+
+# Count all formations
+all_forms <- scout_data %>%
+  filter(!is.na(Offense_Team), !is.na(Zone_Bin), !is.na(Offense_Formation)) %>%
+  count(Offense_Team, Zone_Bin, Offense_Formation, name = "Plays")
+
+# Save top 2 formations per team/zone
+top2_raw <- all_forms %>%
+  group_by(Offense_Team, Zone_Bin) %>%
+  arrange(desc(Plays), .by_group = TRUE) %>%
+  slice_head(n = 2)
+
+# Make display labels for top 2
+top2_forms <- top2_raw %>%
+  mutate(label = paste0(Offense_Formation, " (", Plays, ")")) %>%
+  summarise(label = paste(label, collapse = "\n"), .groups = "drop")
+
+# Total plays (for color fill)
+zone_totals <- all_forms %>%
+  group_by(Offense_Team, Zone_Bin) %>%
+  summarise(Total_Plays = sum(Plays), .groups = "drop")
+
+# Tooltip = other formations not in top 2
+tooltip_forms <- anti_join(all_forms, top2_raw,
+                           by = c("Offense_Team", "Zone_Bin", "Offense_Formation")) %>%
+  group_by(Offense_Team, Zone_Bin) %>%
+  summarise(
+    tooltip_text = paste0(Offense_Formation, " (", Plays, ")", collapse = "\n"),
+    .groups = "drop"
+  )
+
+# Combine all
+viz_data <- full_join(top2_forms, zone_totals, by = c("Offense_Team", "Zone_Bin")) %>%
+  full_join(tooltip_forms, by = c("Offense_Team", "Zone_Bin")) %>%
+  replace_na(list(label = "", tooltip_text = "", Total_Plays = 0)) %>%
+  mutate(Zone_Bin = factor(Zone_Bin, levels = zone_order)) %>%
+  mutate(tooltip = paste0(
+    "Team: ", Offense_Team, "\n",
+    "Zone: ", Zone_Bin, "\n",
+    "Other Formations:\n", ifelse(tooltip_text == "", "(none)", tooltip_text)
+  ))
+
+# Plot
+base_plot <- ggplot(viz_data, aes(x = Offense_Team, y = Zone_Bin, text = tooltip)) +
+  geom_tile(aes(fill = Total_Plays), color = "white", width = 0.95, height = 0.95) +
+  geom_text(aes(label = label), size = 3.2, lineheight = 1.2, fontface = "bold") +
+  scale_fill_gradient(low = "#d0f0f0", high = "#007b7f", name = "Total Plays") +
+  scale_y_discrete(limits = zone_order) +
+  labs(
+    title = "Top 2 Offensive Formations by Team and Field Zone",
+    x = "Team",
+    y = "Field Zone (Yardline Range)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 0),
+    legend.position = "right"
+  )
+
+# Interactive plot
+ggplotly(base_plot, tooltip = "text")
+```
+
+## Play Type Tendencies by Down and Distance
+
+Understanding when teams are likely to pass versus run is fundamental to defensive play-calling. In this section, we examine how **pass rates vary by down and distance**, broken down into four key distance bins: **Short (1–3 yards), Medium (4–6), Long (7–10), and Extra Long (11–20)**.
+
+Each chart below shows the pass percentage for each team across those bins, separated by down. This reveals situational preferences and helps identify whether teams are conservative or aggressive in specific contexts.
+
+```{r setup-passrate-plots, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Create Distance Bins
+scout_binned <- scout_data %>%
+  mutate(Distance_Bin = case_when(
+    Distance <= 3 ~ "Short (1–3)",
+    Distance <= 6 ~ "Medium (4–6)",
+    Distance <= 10 ~ "Long (7–10)",
+    Distance <= 20 ~ "X-Long (11–20)",
+    TRUE ~ NA_character_
+  ),
+  Distance_Bin = factor(Distance_Bin, levels = c("Short (1–3)", "Medium (4–6)", "Long (7–10)", "X-Long (11–20)"))
+  ) %>%
+  filter(!is.na(Down), !is.na(Distance_Bin), !is.na(Play_Type), !is.na(Offense_Team))
+
+# Plot function
+plot_pass_rate <- function(down_number) {
+  down_label <- case_when(
+    down_number == 1 ~ "1st",
+    down_number == 2 ~ "2nd",
+    down_number == 3 ~ "3rd",
+    TRUE ~ paste(down_number, "th")
+  )
+  
+  scout_binned %>%
+    filter(Down == down_number) %>%
+    count(Offense_Team, Distance_Bin, Play_Type) %>%
+    pivot_wider(names_from = Play_Type, values_from = n, values_fill = 0) %>%
+    mutate(
+      Total = Run + Pass,
+      Pass_Rate = Pass / Total
+    ) %>%
+    ggplot(aes(x = Distance_Bin, y = Pass_Rate, color = Offense_Team, group = Offense_Team)) +
+    geom_line(size = 1.2) +
+    geom_point(size = 2) +
+    scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
+    labs(
+      title = paste0("Pass Rate by Distance to Go – ", down_label, " Down"),
+      subtitle = "X = Distance Bin | Y = % Pass | Color = Team",
+      x = "Distance to Go (Grouped)",
+      y = "% Pass"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 25, hjust = 1)
+    )
+}
+
+```
+```{r first-down-plot, echo=FALSE}
+plot_pass_rate(1)
+```
+
+On 1st down, many teams exhibit a balanced approach between run and pass. However, some favor early-down passing even in short-yardage situations, which could suggest an emphasis on play-action or tempo control. Teams with higher pass rates on early downs may be trying to stay ahead of schedule or exploit base defensive looks.
+
+```{r second-down-plot, echo=FALSE}
+plot_pass_rate(2)
+```
+
+On 2nd down, trends begin to diverge more clearly by distance. Short and medium distances still feature a mix of strategies, but in long or extra-long situations, pass rates predictably climb. However, some teams remain committed to the run even when behind the sticks, indicating either confidence in their ground game or a desire to manage risk.
+
+```{r third-down-plot, echo=FALSE}
+plot_pass_rate(3)
+```
+
+3rd down is where tendencies crystallize. Most teams show high pass rates in long-yardage situations, but the variation across short and medium bins is notable. Some teams are clearly willing to throw on 3rd-and-short, while others rely more on their run schemes. Recognizing these differences helps anticipate calls in high-leverage situations.
+
+Together, these visuals offer a comprehensive look at when teams are most likely to throw the ball, which can inform coverage shells, blitz timing, and personnel packages based on down-and-distance expectations.
+
+## Team-Level Run vs Pass Tendencies by Down
+
+In addition to understanding general patterns across downs and distances, it is valuable to examine how **individual teams distribute their play calls by down**. This can reveal whether a team is more aggressive or conservative relative to its peers on 1st, 2nd, or 3rd down.
+
+The following chart shows each opponent’s run/pass balance for every down:
+
+```{r run-pass-by-down-team, message=FALSE, echo= FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+
+scout_data %>%
+  filter(!is.na(Down), !is.na(Play_Type), !is.na(Offense_Team), Play_Type %in% c("Run", "Pass")) %>%
+  count(Offense_Team, Down, Play_Type) %>%
+  group_by(Offense_Team, Down) %>%
+  mutate(Percent = n / sum(n)) %>%
+  ggplot(aes(x = factor(Down), y = Percent, fill = Play_Type)) +
+  geom_bar(stat = "identity", position = "fill") +
+  facet_wrap(~ Offense_Team) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("Run" = "red", "Pass" = "blue")) +
+  labs(
+    title = "Run vs Pass by Down (Per Team)",
+    x = "Down", y = "Play Type %",
+    fill = "Play Type"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"))
+
+
+```
+
+This faceted bar chart illustrates the percentage of run vs. pass plays per down for each team in the dataset. Teams with extreme preferences—like heavily favoring the run on early downs or passing almost exclusively on 3rd—can be flagged for focused preparation.
+
+It also highlights which teams are more balanced across downs, offering fewer pre-snap clues based on situation alone.
+
+## Play Type by Distance to Go and Down
+
+To further break down offensive decision-making, this section visualizes **individual Run and Pass plays**, plotting them by **distance to go** and grouping by **team**. Each point represents a single play, with color indicating the down on which it occurred.
+
+The plots below allow for a close-up view of how teams deploy their play types across all distances and situations:
+
+```{r run-pass-distance-by-team-vertical, echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Clean and filter
+play_data <- scout_data %>%
+  filter(!is.na(Play_Type), !is.na(Distance), !is.na(Offense_Team), !is.na(Down))
+
+# Shared plot function
+base_plot <- function(play_type_label) {
+  play_data %>%
+    filter(Play_Type == play_type_label) %>%
+    ggplot(aes(x = Distance, y = Offense_Team, color = factor(Down))) +
+    geom_jitter(height = 0.2, width = 0.3, size = 2, alpha = 0.85) +
+    scale_color_brewer(palette = "Dark2", name = "Down") +
+    labs(
+      x = "Distance to Go (yards)",
+      y = "Offense Team",
+      title = paste(play_type_label, "Plays by Distance and Down")
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      legend.position = "bottom"
+    )
+}
+
+# Generate and combine vertically
+run_plot <- base_plot("Run")
+pass_plot <- base_plot("Pass")
+
+run_plot / pass_plot + plot_layout(heights = c(1, 1))
+```
+
+In the Run play plot (top), we can observe which teams are more comfortable running in longer-yardage situations, and which restrict rushing attempts to short or medium distances. Outliers—such as frequent runs on 2nd-and-long or 3rd-and-medium—can be valuable scouting flags.
+
+In the Pass play plot (bottom), the spread across distances tends to be wider, but individual team strategies still emerge. Some teams may rely heavily on early-down passing, while others become more predictable only in long-yardage scenarios.
+
+Together, these plots offer a micro-level lens on offensive behavior, complementing the more aggregated tendencies shown in previous charts. They are especially useful when preparing for a specific opponent’s habits and constraints.
+
+## Summary: Pass Rate by Down and Distance
+
+To consolidate trends across all teams, this heatmap visualizes the **pass rate** by **down** and **distance bin**. Each tile represents the percentage of plays that were passes within that combination of down and distance, with darker shades indicating a stronger tendency to throw the ball.
+
+```{r heatmap, echo=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+scout_data %>%
+  filter(!is.na(Distance), !is.na(Down), !is.na(Play_Type), Play_Type %in% c("Run", "Pass")) %>%
+  mutate(Distance_Bin = case_when(
+    Distance <= 3 ~ "Short (1–3)",
+    Distance <= 6 ~ "Medium (4–6)",
+    Distance <= 10 ~ "Long (7–10)",
+    Distance > 10 ~ "X-Long (11+)"
+  )) %>%
+  mutate(Distance_Bin = factor(Distance_Bin, levels = c(
+    "Short (1–3)", "Medium (4–6)", "Long (7–10)", "X-Long (11+)"
+  ))) %>%
+  count(Down, Distance_Bin, Play_Type) %>%
+  pivot_wider(names_from = Play_Type, values_from = n, values_fill = 0) %>%
+  mutate(Pass_Rate = Pass / (Run + Pass)) %>%
+  ggplot(aes(x = Distance_Bin, y = factor(Down), fill = Pass_Rate)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = paste0(round(Pass_Rate * 100), "%")), size = 3) +
+  scale_fill_gradient(low = "#1b9e77", high = "#d95f02", labels = scales::percent) +
+  labs(
+    title = "Pass Rate by Down and Distance",
+    x = "Distance Bin", y = "Down", fill = "% Pass"
+  ) +
+  theme_minimal()
+```
+
+As expected, pass rates increase with distance to go, especially on 2nd and 3rd down. On Short (1–3 yards), most teams are more balanced or run-heavy, particularly on early downs. By contrast, in the X-Long (11+) range, pass rates are uniformly high, with few exceptions.
+
+This visual can serve as a quick-reference scouting tool, helping coaches anticipate likely play types based on situational context alone. Whether preparing for third-and-short or second-and-long, this chart informs how offenses typically respond — guiding everything from personnel packages to coverage shells.
+
+## Formation vs Play Type Tendencies
+
+This final section analyzes the relationship between **offensive formation selection and play type**. Specifically, it clusters formations based on how often they are used to run or pass, along with the average down and distance they appear in. This helps distinguish formations that are predictable from those that are more balanced or deceptive.
+
+```{r formation-usage-clusters, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(knitr)
+
+set.seed(42)
+
+#Summarize by formation
+formation_summary <- scout_data %>%
+  filter(!is.na(Offense_Formation), Play_Type %in% c("Run", "Pass")) %>%
+  group_by(Offense_Formation) %>%
+  summarise(
+    pass_pct = mean(Play_Type == "Pass", na.rm = TRUE),
+    avg_down = mean(Down, na.rm = TRUE),
+    avg_distance = mean(Distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+#Cluster based on tendencies
+clustering_input <- formation_summary %>%
+  select(pass_pct, avg_down, avg_distance) %>%
+  scale()
+
+kmeans_result <- kmeans(clustering_input, centers = 3)
+formation_summary$cluster <- kmeans_result$cluster
+
+#Label based on each formation’s actual pass_pct
+formation_summary <- formation_summary %>%
+  mutate(cluster_label = case_when(
+    pass_pct == 0 ~ "Run-Only Sets",
+    pass_pct < 0.3 ~ "Run-Heavy Sets",
+    pass_pct > 0.6 ~ "Pass-Heavy Sets",
+    TRUE ~ "Balanced Tendencies"
+  )) %>%
+  mutate(cluster_label = factor(cluster_label,
+    levels = c("Run-Only Sets", "Run-Heavy Sets", "Balanced Tendencies", "Pass-Heavy Sets")
+  ))
+
+#Plot
+ggplot(formation_summary, aes(x = pass_pct, y = avg_distance, color = cluster_label)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = Offense_Formation), size = 3, max.overlaps = 100) +
+  labs(
+    title = "Formation vs Play Type Tendencies",
+    subtitle = "Formation Clusters Based on Usage Tendencies\nClustered using % Pass, Down, and Distance to Go",
+    x = "% Pass",
+    y = "Average Distance to Go",
+    color = "Cluster Label"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 11),
+    legend.position = "right"
+  )
+
+#Table
+formation_summary %>%
+  count(cluster_label) %>%
+  rename(`Formations in Cluster` = n) %>%
+  left_join(
+    formation_summary %>%
+      group_by(cluster_label) %>%
+      summarise(
+        pass = mean(pass_pct),
+        run = 1 - mean(pass_pct),
+        .groups = "drop"
+      ),
+    by = "cluster_label"
+  ) %>%
+  select(cluster_label, `Formations in Cluster`, run, pass) %>%
+  arrange(cluster_label) %>%
+  kable(caption = "Run and Pass Tendencies by Formation Category", digits = 2)
+```
+The scatterplot visualizes each formation by:
+
+- **X-axis:** Percentage of plays that were passes from that formation  
+- **Y-axis:** Average distance to go when the formation is used  
+- **Color:** Assigned cluster label (Run-Only, Run-Heavy, Balanced, or Pass-Heavy)
+
+Formations like **Run-Only Sets** tend to appear in short-yardage or goal-line contexts, while **Pass-Heavy Sets** stretch into longer distances and later downs. **Balanced Tendencies** formations are those used flexibly across play types, making them harder to predict defensively.
+
+This view supports quick recognition of opponent tendencies—particularly valuable for identifying which formations may trigger automatic defensive checks (e.g., loading the box or showing pressure).
+
+The accompanying summary table categorizes all formations into these groups and presents their average pass and run rates:
+
+> **Table:** Run and Pass Tendencies by Formation Category
+
+Coaches can use this information to decide:
+
+- When to gamble or disguise coverage  
+- Which formations to treat as high-alert signals for specific play types  
+- How much respect to give a formation’s unpredictability
+
+## Run vs Pass Ratio by Formation
+
+While the previous scatterplot clustered formations based on multiple variables, this chart focuses solely on **play type distribution by formation**. It visualizes the proportion of **run and pass plays** called from each formation, sorted by **run-heaviest to pass-heaviest**.
+
+```{r run_vs_pass_Formation, echo=FALSE, message=FALSE, warning=FALSE}
+# Step 1: Calculate proportions and sort
+formation_props <- scout_data %>%
+  filter(!is.na(Offense_Formation)) %>%
+  group_by(Offense_Formation, Play_Type) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Play_Type, values_from = count, values_fill = 0) %>%
+  mutate(
+    total = Run + Pass,
+    run_pct = Run / total,
+    pass_pct = Pass / total
+  ) %>%
+  arrange(desc(run_pct)) %>%
+  mutate(Offense_Formation = factor(Offense_Formation, levels = Offense_Formation)) %>%
+  pivot_longer(cols = c(run_pct, pass_pct), names_to = "Play_Type", values_to = "prop") %>%
+  mutate(Play_Type = recode(Play_Type, run_pct = "Run", pass_pct = "Pass"))
+
+# Step 2: Plot
+ggplot(formation_props, aes(x = prop, y = Offense_Formation, fill = Play_Type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("Pass" = "red", "Run" = "blue")) +
+  labs(
+    title = "Run vs Pass Ratio by Formation (Sorted by Run %)",
+    x = "Proportion of Plays",
+    y = "Formation",
+    fill = "Play Type"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    legend.position = "right"
+  )
+
+```
+
+This horizontal stacked bar chart highlights which formations are used almost exclusively for one type of play and which are more balanced. The formations at the top are **run-dominant**, with very few pass plays—often used in short-yardage or power-run situations. As we move down the chart, formations become more **pass-oriented**, frequently deployed in longer-yardage or open-field scenarios.
+
+This view provides a tactical advantage by allowing coaches to:
+
+- Quickly spot **tendency formations** that signal likely play types  
+- Identify **balanced formations** that require a more cautious, coverage-flexible response  
+- Compare formation usage at a glance for each opponent
+
+It's especially useful when preparing for teams with limited offensive variation or formations that consistently align with one type of play.
+
+## Run vs Pass Percentages by Formation (Dumbbell Plot)
+
+This visualization highlights the **distribution of play types (run vs. pass)** across offensive formations. Each line connects the percentage of run plays (blue) and pass plays (red) for a specific formation, providing an at-a-glance comparison of how balanced or skewed each formation is.
+
+```{r Dumbell-Plot, echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+
+# Prepare dumbbell_data
+dumbbell_data <- scout_data %>%
+  filter(!is.na(Offense_Formation)) %>%
+  group_by(Offense_Formation, Play_Type) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Play_Type, values_from = count, values_fill = 0) %>%
+  filter(Run > 0 & Pass > 0) %>%
+  mutate(
+    total = Run + Pass,
+    run_pct = Run / total,
+    pass_pct = Pass / total
+  ) %>%
+  arrange(desc(run_pct)) %>%
+  mutate(Offense_Formation = factor(Offense_Formation, levels = Offense_Formation))
+
+# Identify key insights
+most_balanced <- dumbbell_data %>%
+  mutate(diff = abs(run_pct - pass_pct)) %>%
+  arrange(diff) %>%
+  slice(1)
+
+most_pass_heavy <- dumbbell_data %>%
+  arrange(desc(pass_pct)) %>%
+  slice(1)
+
+most_run_heavy <- dumbbell_data %>%
+  arrange(desc(run_pct)) %>%
+  slice(1)
+
+# Plot
+ggplot(dumbbell_data, aes(y = Offense_Formation)) +
+  geom_segment(aes(x = run_pct, xend = pass_pct, yend = Offense_Formation), color = "gray", linewidth = 1) +
+  geom_point(aes(x = run_pct, color = "Run %"), size = 3) +
+  geom_point(aes(x = pass_pct, color = "Pass %"), size = 3) +
+
+  # Highlight important formations
+  geom_point(data = most_balanced, aes(x = run_pct, y = Offense_Formation), color = "red", size = 4, shape = 21, fill = "red") +
+  geom_point(data = most_balanced, aes(x = pass_pct, y = Offense_Formation), color = "blue", size = 4, shape = 21, fill = "blue") +
+  geom_text_repel(data = most_balanced, aes(x = 0.5, label = "Most Balanced Formation"), nudge_y = 0.5, size = 3.5) +
+
+  geom_text_repel(data = most_pass_heavy, aes(x = pass_pct, label = "Most Pass-Heavy"), nudge_y = 0.5, color = "blue", size = 3.5) +
+  geom_text_repel(data = most_run_heavy, aes(x = run_pct, label = "Most Run-Heavy"), nudge_y = -0.5, color = "red", size = 3.5) +
+
+  scale_color_manual(values = c("Run %" = "red", "Pass %" = "blue")) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Run vs Pass Percentages by Formation",
+    subtitle = "Each formation's run and pass % connected by a gray line",
+    x = "Play Percentage",
+    y = "Formation",
+    color = "Play Type"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold")
+  )
+
+```
+Formations are sorted from most **run-heavy** at the top to most **pass-heavy** at the bottom. The gray lines help illustrate the gap between the two play types, while the colored points show the actual percentage breakdown.
+
+To draw further insight, the plot also highlights:
+
+- **Most Run-Heavy Formation**: Dominated by rushing plays, often used in short-yardage or power scenarios  
+- **Most Pass-Heavy Formation**: Heavily skewed toward passing, often associated with spread or long-yardage looks  
+- **Most Balanced Formation**: Near a 50/50 split between run and pass, making it less predictable and harder to defend
+
+This chart reinforces formation tendencies in a highly interpretable way, showing which offensive looks are most likely to indicate a specific play type—and which demand more cautious, all-options-on-the-table defensive planning.
+
+# Final Answers to Research Questions
+
+Based on the analysis, here are the main takeaways:
+
+### When are teams most likely to pass or run?
+- **Pass likelihood** increases consistently with longer distances and later downs.
+- **1st down**: Most teams are relatively balanced unless in long-yardage situations.
+- **3rd and long (7+ yards)**: Teams overwhelmingly pass, regardless of field position.
+
+### Do teams show predictable tendencies by formation?
+- Yes. Several formations like `GOALLINE` and `3-1 SING` are nearly **run-only**.
+- Other formations like `2-2 WIZ` and `4-1` show a **high pass bias**.
+- A few formations (e.g., `3-2`) are **balanced**, meaning they require more flexible defensive schemes.
+
+### Do field zones affect play-calling?
+- **Red zone and goal line** situations lean heavily on run-dominant formations.
+- In **midfield or backed-up zones**, there's more variation and balance between runs and passes.
+
+### Are there team-level differences in play-calling strategy?
+- **CEC and CPA** favor run-heavy approaches, especially on 1st and 2nd down.
+- **CIT** shows the most **pass-heavy behavior**, even in early downs or shorter yardage.
+- **HOR** uses balanced play-calling but increases pass rate significantly in 2nd and 3rd down.
+
+These concrete answers provide actionable insights for defensive planning, especially in identifying formations and scenarios where tendencies can be exploited.
+
+
+# Discussion
+
+This analysis demonstrates that offensive play-calling in high school football is shaped by a variety of situational factors—most notably down, distance, and field position. It also shows that team identity and formation usage provide valuable context for anticipating play type.
+
+Several formations were found to be highly predictable, especially in short-yardage or red zone situations. Others remained balanced across different downs and distances, offering no clear indicators of intent. This kind of insight allows defensive coordinators to focus preparation not just on stopping specific plays, but on understanding the structural tendencies of the offenses they face.
+
+Team-level variation was another key theme. Some opponents leaned heavily into a consistent style of play (e.g., run-first early downs), while others varied approach depending on distance or field location. Recognizing those patterns can directly impact how and when to call pressures, adjust coverage, or sub personnel.
+
+Ultimately, the combination of visualizations—tables, scatterplots, heatmaps, and cluster-based graphics—enabled a layered perspective: one that begins with raw formation frequency and ends with strategic implications for play calling under pressure.
+
+# Conclusion
+
+This report provides a situational scouting framework for analyzing offensive behavior in Nova Scotia high school football. By quantifying how formations, field position, and down-and-distance shape play-calling, it offers coaches practical tools for building smarter game plans.
+
+Rather than replacing film study, this approach enhances it—providing a complementary, data-driven layer of insight that can sharpen defensive strategy and help anticipate an opponent’s next move.
+
+Future work may include integrating outcomes (e.g., yards gained, success rates) to assess not only **what** teams do, but **how well** those choices perform. Expanding the dataset to include more games or additional teams would also allow for broader generalization.
+
+For now, the findings here represent a foundation for more structured scouting—a step toward blending instinct with information on the sideline.
+
+# Appendix: Formation Diagrams
+
+Offensive formations referenced in this report are compiled in the PDF linked below:
+
+<embed src="formations/Full_Formations.pdf" width="100%" height="600px" type="application/pdf">
+
+
+[View Full Formation Diagram PDF](formations/Full_Formations.pdf)
+
+# References
+
+Wickham, H., Averick, M., Bryan, J., Chang, W., McGowan, L. D., François, R., Grolemund, G., Hayes, A., Henry, L., Hester, J., Kuhn, M., Pedersen, T. L., Miller, E., Bache, S. M., Müller, K., Ooms, J., Robinson, D., Seidel, D. P., Spinu, V., ... & Yutani, H. (2019). Welcome to the tidyverse. *Journal of Open Source Software, 4*(43), 1686. https://doi.org/10.21105/joss.01686
+
+Xie, Y., Allaire, J. J., & Grolemund, G. (2023). *R Markdown: The Definitive Guide*. Chapman and Hall/CRC. https://bookdown.org/yihui/rmarkdown/
+
+Wickham, H., & Grolemund, G. (2016). *R for Data Science*. O’Reilly Media. https://r4ds.had.co.nz
+
+Cook, L. (2025). Game footage and manual data tagging conducted by the author during the 2024–2025 Nova Scotia high school football season.
+
+
+
+## Note on Contributions
+
+This report was completed as an individual project. All data cleaning, analysis, visualizations, and written interpretation were conducted solely by **Liam Cook**.
+
+No group members were involved in this submission.

@@ -1,0 +1,202 @@
+---
+title: "Football Scouting Report Presentation"
+format: revealjs
+revealjs:
+  theme: simple
+  slide-number: true
+  center: true
+  transition: slide
+  width: 1400
+  height: 900
+  self-contained: true
+---
+
+## Title Slide
+
+**Project:** Football Scouting Report  
+**Author:** Liam Cook  
+**Date:** April 2025
+
+---
+
+## Abstract & Method
+
+### Overview
+- Analyzed play-by-play football data
+- Focused on formation, down, distance, and play type
+- Used clustering and visualization to uncover tendencies
+
+---
+
+## Formation Frequency by Field Zone
+
+::: columns
+::: column
+![Formation by Zone](images/Forms_by_team.png){width=100%}
+:::
+
+::: column
+### Visual Summary
+- Shows top 2 formations by team in each field zone
+- Color intensity = play volume
+:::
+:::
+
+---
+
+## Team-Level Run vs Pass Tendencies by Down
+
+::: columns
+::: column
+![Team Tendencies](images/Team_Tendencies_by_Down.png){width=100%}
+:::
+
+::: column
+### Team Play Calling by Down
+- Highlights variation in play calling across teams
+- Run-heavy vs pass-heavy tendencies by down
+:::
+:::
+
+---
+
+## Play Type by Distance to Go and Down
+
+::: columns
+::: column
+![Down-Distance](images/Dist_Down_Play_Type.png){width=100%}
+:::
+
+::: column
+### Scatter View
+- Each dot = one play by down/distance/team
+- Useful for spotting situational play call patterns
+:::
+:::
+
+---
+
+## Summary: Pass Rate by Down and Distance
+
+::: columns
+::: column
+![Heatmap](images/Summary_heatmap.png){width=100%}
+:::
+
+::: column
+### Heatmap Summary
+- Higher % pass on 2nd/3rd & long
+- Lower % pass on early downs or short yardage
+:::
+:::
+
+---
+
+## First Down Pass Rates by Distance
+
+::: columns
+::: column
+![First Down](images/First_down.png){width=100%}
+:::
+
+::: column
+### Trends on 1st Down
+- Teams tend to run more on short yardage
+- CPA has balanced look; CIT very pass-heavy
+:::
+:::
+
+---
+
+## Second Down Pass Rates by Distance
+
+::: columns
+::: column
+![Second Down](images/Second_down.png){width=100%}
+:::
+
+::: column
+### Trends on 2nd Down
+- More aggressive play calling emerges
+- CIT passes more as distance increases
+:::
+:::
+
+---
+
+## Third Down Pass Rates by Distance
+
+::: columns
+::: column
+![Third Down](images/Third_down.png){width=100%}
+:::
+
+::: column
+### Trends on 3rd Down
+- Passing becomes dominant on 3rd & long
+- Run attempts mostly vanish except for surprise plays
+:::
+:::
+
+---
+
+## Formation vs Play Type Tendencies
+
+::: columns
+::: column
+![KMeans](images/Form_Kmeans.png){width=100%}
+:::
+
+::: column
+### K-Means Clustering
+- Clusters formations by % pass, avg down, and distance
+- Labels: Run-Only, Run-Heavy, Balanced, Pass-Heavy
+:::
+:::
+
+---
+
+## Run vs Pass Ratio by Formation
+
+::: columns
+::: column
+![Run Pass Ratio](images/Run_Pass_Formation.png){width=100%}
+:::
+
+::: column
+### Horizontal Stacked Bar
+- Formations sorted by run-dominant to pass-heavy
+- Color shows play type usage
+:::
+:::
+
+---
+
+## Run vs Pass Percentages by Formation
+
+::: columns
+::: column
+![Dumbbell](images/Run_Pass_Dumbbell.png){width=100%}
+:::
+
+::: column
+### Dumbbell Chart
+- Spread between run/pass shown per formation
+- Flags most extreme & balanced formations
+:::
+:::
+
+---
+
+## Conclusion
+
+### Key Takeaways
+- Strong tendencies exist by team, down, and formation
+- Situational awareness is critical (distance + down)
+- Formations strongly indicate play type in many cases
+
+---
+
+## Contributions
+
+**Liam Cook** – Sole contributor to the analysis, report, and presentation.
