@@ -11,16 +11,25 @@ format:
     slide-number: true
     footer: "Football Data Project"
 ---
-## Abstract & Method
+## Abstract & Research Questions
 
-### Overview
-- Analyzed play-by-play football data
-- Focused on formation, down, distance, and play type
-- Used clustering and visualization to uncover tendencies
-  
-### Questions
-- How often does a team run or pass based on situation?
-- How often is a formation Run or Passed out of?
+This project investigates offensive play-calling tendencies in Nova Scotia high school football. I manually tagged five games, analyzing each play based on situation and play type.
+
+I aimed to answer two key questions:
+1. How often does a team run or pass based on down and distance?
+2. Which formations are strongly predictive of run vs. pass?
+
+---
+
+## Dataset Overview
+
+- **Source**: Manually tagged game film from 2024–2025 season  
+- **Categorical variables**:  
+  <span style="font-size:0.8em;">`Offense_Team`, `Play_Type`, `Offense_Formation`, `Field_Zone`</span>  
+- **Quantitative variables**:  
+  <span style="font-size:0.8em;">`Start_Yardline`, `Down`, `Distance`</span>
+
+
 ---
 
 ## Team-Level Run vs Pass Tendencies by Down
@@ -87,22 +96,6 @@ format:
 
 ---
 
-## Third Down Pass Rates by Distance
-
-::: columns
-::: column
-![Third Down](images/Third_down.png){width=100%}
-:::
-
-::: column
-### Trends on 3rd Down
-- Passing becomes dominant on 3rd & long
-- Run attempts mostly vanish except for surprise plays
-:::
-:::
-
----
-
 ## Formation vs Play Type Tendencies
 
 ::: columns
@@ -135,15 +128,28 @@ format:
 
 ---
 
-## Conclusion
+## Conclusion & Thank you!!!
 
 ### Key Takeaways
 - Strong tendencies exist by team, down, and formation
 - Situational awareness is critical (distance + down)
 - Formations strongly indicate play type in many cases
+  
+## Thank You
+Thanks for watching!  
+I’m happy to answer any follow-up questions.
+
 
 ---
 
-## Contributions
+## Contributions & References
 
 **Liam Cook** – Sole contributor to the analysis, report, and presentation.
+
+## References
+- ggplot2 Documentation: https://ggplot2.tidyverse.org/  
+- Plotly for R: https://plotly.com/  
+- ggrepel Documentation: https://ggrepel.slowkow.com/  
+- Tidyverse Project: https://www.tidyverse.org/  
+- Quarto RStudio Tutorial: https://quarto.org/docs/get-started/hello/rstudio.html
+
